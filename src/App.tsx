@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import "./styles/globals.css";
 import { Header } from "./components/Header";
 import { SearchBar } from "./components/SearchBar";
 import { PropertyCard, PropertyData } from "./components/PropertyCard";
+import { PropertyListCard } from "./components/PropertyListCard";
 import { PropertyDetail } from "./components/PropertyDetail";
 import { FilterSidebar } from "./components/FilterSidebar";
 import { LandingPage } from "./components/LandingPage";
+import { SavedPropertiesPage } from "./components/SavedPropertiesPage";
 import { properties } from "./data/properties";
 import { Button } from "./components/ui/button";
 import { LayoutGrid, List, Map, SlidersHorizontal } from "lucide-react";
@@ -23,13 +25,47 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "./components/ui/sheet";
+import { useSearch } from "./contexts/SearchContext";
+import { filterProperties, sortProperties } from "./utils/propertyFilters";
+import { PropertyCardSkeletonGrid } from "./components/PropertyCardSkeleton";
+import { NoResults } from "./components/NoResults";
 
 export default function App() {
   const [showLandingPage, setShowLandingPage] = useState(true);
+  const [showSavedProperties, setShowSavedProperties] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedProperty, setSelectedProperty] = useState<PropertyData | null>(null);
   const [currency, setCurrency] = useState<"USD" | "IDR" | "AUD">("USD");
   const [language, setLanguage] = useState<"en" | "id">("en");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const { filters, updateFilters, resetFilters } = useSearch();
+  const itemsPerPage = 12;
+
+  // Filter and sort properties
+  const filteredProperties = useMemo(() => {
+    const filtered = filterProperties(properties, filters);
+    return sortProperties(filtered, filters.sortBy);
+  }, [filters]);
+
+  // Paginate results
+  const totalPages = Math.ceil(filteredProperties.length / itemsPerPage);
+  const paginatedProperties = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredProperties.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredProperties, currentPage]);
+
+  // Reset to page 1 when filters change
+  const handleFiltersChange = (updates: Partial<typeof filters>) => {
+    updateFilters(updates);
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   // If a property is selected, show detail view
   if (selectedProperty) {
@@ -46,12 +82,41 @@ export default function App() {
           setCurrency={setCurrency}
           language={language}
           setLanguage={setLanguage}
+          onSavedPropertiesClick={() => {
+            setSelectedProperty(null);
+            setShowSavedProperties(true);
+            setShowLandingPage(false);
+          }}
         />
         <PropertyDetail 
           property={selectedProperty} 
           onBack={() => setSelectedProperty(null)}
           similarProperties={similarProperties}
           currency={currency}
+        />
+      </div>
+    );
+  }
+
+  // Show saved properties page
+  if (showSavedProperties) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header 
+          currency={currency}
+          setCurrency={setCurrency}
+          language={language}
+          setLanguage={setLanguage}
+          onSavedPropertiesClick={() => setShowSavedProperties(true)}
+        />
+        <SavedPropertiesPage
+          properties={properties}
+          currency={currency}
+          onPropertyClick={(property) => {
+            setSelectedProperty(property);
+            setShowSavedProperties(false);
+          }}
+          onBack={() => setShowSavedProperties(false)}
         />
       </div>
     );
@@ -66,6 +131,10 @@ export default function App() {
           setCurrency={setCurrency}
           language={language}
           setLanguage={setLanguage}
+          onSavedPropertiesClick={() => {
+            setShowLandingPage(false);
+            setShowSavedProperties(true);
+          }}
         />
         <LandingPage
           featuredProperties={properties}
@@ -134,15 +203,23 @@ export default function App() {
         setCurrency={setCurrency}
         language={language}
         setLanguage={setLanguage}
+        onSavedPropertiesClick={() => setShowSavedProperties(true)}
       />
-      <SearchBar />
+      <SearchBar 
+        filters={filters}
+        onFiltersChange={handleFiltersChange}
+      />
 
       {/* Main Content */}
       <div className="max-w-[1400px] mx-auto px-4 py-6">
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Filter Sidebar - Desktop */}
           <div className="hidden lg:block w-[280px] flex-shrink-0">
-            <FilterSidebar />
+            <FilterSidebar 
+              filters={filters}
+              onFiltersChange={handleFiltersChange}
+              onReset={resetFilters}
+            />
           </div>
 
           {/* Listings */}
@@ -151,7 +228,7 @@ export default function App() {
             <div className="bg-white border rounded-lg p-4 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4 w-full sm:w-auto">
                 <h2>
-                  {properties.length} properties in Bali
+                  {filteredProperties.length} {filteredProperties.length === 1 ? 'property' : 'properties'} in Bali
                 </h2>
 
                 {/* Mobile Filter Button */}
@@ -160,6 +237,11 @@ export default function App() {
                     <Button variant="outline" className="lg:hidden">
                       <SlidersHorizontal className="w-4 h-4 mr-2" />
                       Filters
+                      {(filters.features.length > 0 || filters.bedrooms > 0 || filters.bathrooms > 0) && (
+                        <span className="ml-2 bg-emerald-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                          {filters.features.length + (filters.bedrooms > 0 ? 1 : 0) + (filters.bathrooms > 0 ? 1 : 0)}
+                        </span>
+                      )}
                     </Button>
                   </SheetTrigger>
                   <SheetContent side="left" className="w-[300px] overflow-y-auto">
@@ -167,7 +249,11 @@ export default function App() {
                       <SheetTitle>Filters</SheetTitle>
                     </SheetHeader>
                     <div className="mt-6">
-                      <FilterSidebar />
+                      <FilterSidebar 
+                        filters={filters}
+                        onFiltersChange={handleFiltersChange}
+                        onReset={resetFilters}
+                      />
                     </div>
                   </SheetContent>
                 </Sheet>
@@ -175,7 +261,10 @@ export default function App() {
 
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 {/* Sort */}
-                <Select defaultValue="newest">
+                <Select 
+                  value={filters.sortBy} 
+                  onValueChange={(value) => handleFiltersChange({ sortBy: value })}
+                >
                   <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
@@ -210,37 +299,86 @@ export default function App() {
               </div>
             </div>
 
-            {/* Property Grid */}
-            <div
-              className={
-                viewMode === "grid"
-                  ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"
-                  : "space-y-4"
-              }
-            >
-              {properties.map((property) => (
-                <PropertyCard 
-                  key={property.id} 
-                  property={property}
-                  onClick={() => setSelectedProperty(property)}
-                />
-              ))}
-            </div>
+            {/* Property Grid/List */}
+            {isLoading ? (
+              <PropertyCardSkeletonGrid count={itemsPerPage} />
+            ) : filteredProperties.length === 0 ? (
+              <NoResults onReset={resetFilters} />
+            ) : (
+              <div
+                className={
+                  viewMode === "grid"
+                    ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"
+                    : "space-y-4"
+                }
+              >
+                {paginatedProperties.map((property) => (
+                  viewMode === "grid" ? (
+                    <PropertyCard 
+                      key={property.id} 
+                      property={property}
+                      onClick={() => setSelectedProperty(property)}
+                      currency={currency}
+                    />
+                  ) : (
+                    <PropertyListCard 
+                      key={property.id} 
+                      property={property}
+                      onClick={() => setSelectedProperty(property)}
+                      currency={currency}
+                    />
+                  )
+                ))}
+              </div>
+            )}
 
             {/* Pagination */}
-            <div className="mt-8 flex justify-center">
-              <div className="flex items-center gap-2">
-                <Button variant="outline" disabled>
-                  Previous
-                </Button>
-                <Button variant="default" className="bg-emerald-600 hover:bg-emerald-700">
-                  1
-                </Button>
-                <Button variant="outline">2</Button>
-                <Button variant="outline">3</Button>
-                <Button variant="outline">Next</Button>
+            {!isLoading && filteredProperties.length > 0 && (
+              <div className="mt-8 flex justify-center">
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    disabled={currentPage === 1}
+                    onClick={() => handlePageChange(currentPage - 1)}
+                  >
+                    Previous
+                  </Button>
+                  
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                    // Show first 3, last 1, and current page context
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        className={currentPage === pageNum ? "bg-emerald-600 hover:bg-emerald-700" : ""}
+                        onClick={() => handlePageChange(pageNum)}
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                  
+                  <Button 
+                    variant="outline"
+                    disabled={currentPage === totalPages}
+                    onClick={() => handlePageChange(currentPage + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

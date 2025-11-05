@@ -1,51 +1,33 @@
-import { useState } from "react";
-import { Slider } from "../ui/slider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import { PRICE_RANGES } from "../../data/constants";
 
 interface PriceRangeSliderProps {
-  min?: number;
-  max?: number;
-  step?: number;
-  defaultValue?: [number, number];
-  onValueChange?: (value: [number, number]) => void;
-  formatLabel?: (value: number) => string;
+  value?: string;
+  onChange?: (value: string) => void;
 }
 
 export function PriceRangeSlider({
-  min = 0,
-  max = 10000000,
-  step = 100000,
-  defaultValue = [0, 10000000],
-  onValueChange,
-  formatLabel = (value: number) => {
-    if (value === 0) return "Any";
-    if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`;
-    }
-    return `$${(value / 1000).toFixed(0)}K`;
-  },
+  value = "any",
+  onChange,
 }: PriceRangeSliderProps) {
-  const [range, setRange] = useState(defaultValue);
-
-  const handleValueChange = (value: number[]) => {
-    const newRange = value as [number, number];
-    setRange(newRange);
-    onValueChange?.(newRange);
-  };
-
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between text-sm">
-        <span className="text-gray-600">Min: {formatLabel(range[0])}</span>
-        <span className="text-gray-600">Max: {formatLabel(range[1])}</span>
-      </div>
-      <Slider
-        value={range}
-        onValueChange={handleValueChange}
-        min={min}
-        max={max}
-        step={step}
-        className="py-4"
-      />
-    </div>
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder="Select price range" />
+      </SelectTrigger>
+      <SelectContent>
+        {PRICE_RANGES.map((range) => (
+          <SelectItem key={range.value} value={range.value}>
+            {range.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

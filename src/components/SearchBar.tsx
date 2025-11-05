@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Search, MapPin, Home, DollarSign } from "lucide-react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
@@ -10,8 +11,25 @@ import {
 } from "./ui/select";
 import { PropertyTypeSelect } from "./common/PropertyTypeSelect";
 import { PRICE_RANGES } from "../data/constants";
+import { SearchFilters } from "../utils/propertyFilters";
 
-export function SearchBar() {
+interface SearchBarProps {
+  filters: SearchFilters;
+  onFiltersChange: (updates: Partial<SearchFilters>) => void;
+}
+
+export function SearchBar({ filters, onFiltersChange }: SearchBarProps) {
+  const [localLocation, setLocalLocation] = useState(filters.location || "Bali, Indonesia");
+  const handleSearch = () => {
+    onFiltersChange({ location: localLocation });
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
+
   return (
     <div className="bg-white border-b">
       <div className="max-w-[1400px] mx-auto px-4 py-4">
@@ -22,20 +40,26 @@ export function SearchBar() {
             <Input
               placeholder="Search suburbs, postcodes or states"
               className="pl-10 h-12"
-              defaultValue="Bali, Indonesia"
+              value={localLocation}
+              onChange={(e) => setLocalLocation(e.target.value)}
+              onKeyPress={handleKeyPress}
             />
           </div>
 
           {/* Property Type */}
           <PropertyTypeSelect
-            defaultValue="villa"
+            value={filters.propertyType}
+            onValueChange={(value) => onFiltersChange({ propertyType: value })}
             className="w-full md:w-[180px] h-12"
             showIcon
             icon={<Home className="w-4 h-4 mr-2" />}
           />
 
           {/* Price Range */}
-          <Select defaultValue="any">
+          <Select 
+            value={filters.priceRange} 
+            onValueChange={(value) => onFiltersChange({ priceRange: value })}
+          >
             <SelectTrigger className="w-full md:w-[180px] h-12">
               <DollarSign className="w-4 h-4 mr-2" />
               <SelectValue placeholder="Price" />
@@ -50,7 +74,10 @@ export function SearchBar() {
           </Select>
 
           {/* Search Button */}
-          <Button className="h-12 bg-emerald-600 hover:bg-emerald-700 px-8">
+          <Button 
+            className="h-12 bg-emerald-600 hover:bg-emerald-700 px-8"
+            onClick={handleSearch}
+          >
             <Search className="w-4 h-4 mr-2" />
             Search
           </Button>
