@@ -3,9 +3,11 @@ import "./styles/globals.css";
 import { Header } from "./components/Header";
 import { SearchBar } from "./components/SearchBar";
 import { PropertyCard, PropertyData } from "./components/PropertyCard";
+import { PropertyListCard } from "./components/PropertyListCard";
 import { PropertyDetail } from "./components/PropertyDetail";
 import { FilterSidebar } from "./components/FilterSidebar";
 import { LandingPage } from "./components/LandingPage";
+import { SavedPropertiesPage } from "./components/SavedPropertiesPage";
 import { properties } from "./data/properties";
 import { Button } from "./components/ui/button";
 import { LayoutGrid, List, Map, SlidersHorizontal } from "lucide-react";
@@ -30,6 +32,7 @@ import { NoResults } from "./components/NoResults";
 
 export default function App() {
   const [showLandingPage, setShowLandingPage] = useState(true);
+  const [showSavedProperties, setShowSavedProperties] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedProperty, setSelectedProperty] = useState<PropertyData | null>(null);
   const [currency, setCurrency] = useState<"USD" | "IDR" | "AUD">("USD");
@@ -79,12 +82,41 @@ export default function App() {
           setCurrency={setCurrency}
           language={language}
           setLanguage={setLanguage}
+          onSavedPropertiesClick={() => {
+            setSelectedProperty(null);
+            setShowSavedProperties(true);
+            setShowLandingPage(false);
+          }}
         />
         <PropertyDetail 
           property={selectedProperty} 
           onBack={() => setSelectedProperty(null)}
           similarProperties={similarProperties}
           currency={currency}
+        />
+      </div>
+    );
+  }
+
+  // Show saved properties page
+  if (showSavedProperties) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header 
+          currency={currency}
+          setCurrency={setCurrency}
+          language={language}
+          setLanguage={setLanguage}
+          onSavedPropertiesClick={() => setShowSavedProperties(true)}
+        />
+        <SavedPropertiesPage
+          properties={properties}
+          currency={currency}
+          onPropertyClick={(property) => {
+            setSelectedProperty(property);
+            setShowSavedProperties(false);
+          }}
+          onBack={() => setShowSavedProperties(false)}
         />
       </div>
     );
@@ -99,6 +131,10 @@ export default function App() {
           setCurrency={setCurrency}
           language={language}
           setLanguage={setLanguage}
+          onSavedPropertiesClick={() => {
+            setShowLandingPage(false);
+            setShowSavedProperties(true);
+          }}
         />
         <LandingPage
           featuredProperties={properties}
@@ -167,6 +203,7 @@ export default function App() {
         setCurrency={setCurrency}
         language={language}
         setLanguage={setLanguage}
+        onSavedPropertiesClick={() => setShowSavedProperties(true)}
       />
       <SearchBar 
         filters={filters}
@@ -262,7 +299,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Property Grid */}
+            {/* Property Grid/List */}
             {isLoading ? (
               <PropertyCardSkeletonGrid count={itemsPerPage} />
             ) : filteredProperties.length === 0 ? (
@@ -276,12 +313,21 @@ export default function App() {
                 }
               >
                 {paginatedProperties.map((property) => (
-                  <PropertyCard 
-                    key={property.id} 
-                    property={property}
-                    onClick={() => setSelectedProperty(property)}
-                    currency={currency}
-                  />
+                  viewMode === "grid" ? (
+                    <PropertyCard 
+                      key={property.id} 
+                      property={property}
+                      onClick={() => setSelectedProperty(property)}
+                      currency={currency}
+                    />
+                  ) : (
+                    <PropertyListCard 
+                      key={property.id} 
+                      property={property}
+                      onClick={() => setSelectedProperty(property)}
+                      currency={currency}
+                    />
+                  )
                 ))}
               </div>
             )}

@@ -25,9 +25,10 @@ interface HeaderProps {
   setCurrency: (currency: "USD" | "IDR" | "AUD") => void;
   language: "en" | "id";
   setLanguage: (language: "en" | "id") => void;
+  onSavedPropertiesClick?: () => void;
 }
 
-export function Header({ currency, setCurrency, language, setLanguage }: HeaderProps) {
+export function Header({ currency, setCurrency, language, setLanguage, onSavedPropertiesClick }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { favorites } = useFavorites();
   return (
@@ -86,7 +87,12 @@ export function Header({ currency, setCurrency, language, setLanguage }: HeaderP
               </SelectContent>
             </Select>
 
-            <Button variant="ghost" size="icon" className="hidden lg:flex relative">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="hidden lg:flex relative"
+              onClick={onSavedPropertiesClick}
+            >
               <Heart className="w-5 h-5" />
               {favorites.length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
@@ -171,7 +177,14 @@ export function Header({ currency, setCurrency, language, setLanguage }: HeaderP
                   </Button>
                   
                   <div className="flex gap-2 mt-2">
-                    <Button variant="outline" className="flex-1 relative">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1 relative"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        onSavedPropertiesClick?.();
+                      }}
+                    >
                       <Heart className="w-5 h-5" />
                       {favorites.length > 0 && (
                         <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
