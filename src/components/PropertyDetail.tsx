@@ -50,6 +50,11 @@ import {
 } from "lucide-react";
 import { PropertyFeatures } from "./common/PropertyFeatures";
 import { ImageGalleryModal } from "./common/ImageGalleryModal";
+import { ContactAgentModal } from "./ContactAgentModal";
+import { ShareModal } from "./ShareModal";
+import { useFavorites } from "../contexts/FavoritesContext";
+import { toast } from "sonner";
+import { getPropertyPrice } from "../utils/formatCurrency";
 
 interface PropertyDetailProps {
   property: PropertyData;
@@ -63,6 +68,10 @@ export function PropertyDetail({ property, onBack, similarProperties = [], curre
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [showFullDescription, setShowFullDescription] = useState(false);
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const { isFavorite, toggleFavorite } = useFavorites();
+  
   const galleryImages = property.gallery || [property.image];
 
   const openLightbox = (index: number) => {
@@ -70,12 +79,36 @@ export function PropertyDetail({ property, onBack, similarProperties = [], curre
     setIsGalleryOpen(true);
   };
 
-  // Currency conversion
-  const getPrice = () => {
-    if (currency === "USD" && property.priceUSD) return `$${property.priceUSD.toLocaleString()}`;
-    if (currency === "IDR" && property.priceIDR) return `Rp ${property.priceIDR.toLocaleString()}`;
-    if (currency === "AUD" && property.priceAUD) return `A$${property.priceAUD.toLocaleString()}`;
-    return property.price;
+  const handleWhatsAppContact = () => {
+    const phone = property.agentWhatsApp || property.ownerWhatsApp || property.agentPhone || property.ownerPhone;
+    if (phone) {
+      const message = encodeURIComponent(
+        `Hi, I'm interested in ${property.title} at ${property.address}, ${property.suburb}. Price: ${getPropertyPrice(property, currency)}. Can you provide more information?`
+      );
+      window.open(`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${message}`, "_blank");
+    }
+  };
+
+  const handlePhoneCall = () => {
+    const phone = property.agentPhone || property.ownerPhone;
+    if (phone) {
+      window.open(`tel:${phone}`, "_self");
+    }
+  };
+
+  const handleEmailContact = () => {
+    const email = property.agentEmail || property.ownerEmail;
+    if (email) {
+      const subject = encodeURIComponent(`Inquiry about ${property.title}`);
+      const body = encodeURIComponent(
+        `Hi,\n\nI'm interested in the property:\n${property.title}\n${property.address}, ${property.suburb}\nPrice: ${getPropertyPrice(property, currency)}\n\nPlease contact me with more information.\n\nThank you!`
+      );
+      window.open(`mailto:${email}?subject=${subject}&body=${body}`, "_blank");
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   const description = property.description || "";
@@ -266,13 +299,35 @@ export function PropertyDetail({ property, onBack, similarProperties = [], curre
                   </div>
                 </div>
                 <div className="hidden lg:flex gap-2">
-                  <Button variant="outline" size="icon" className="rounded-full">
-                    <Heart className="w-5 h-5" />
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="rounded-full"
+                    onClick={() => {
+                      toggleFavorite(property.id);
+                      toast.success(
+                        isFavorite(property.id) 
+                          ? "Removed from favorites" 
+                          : "Added to favorites"
+                      );
+                    }}
+                  >
+                    <Heart className={`w-5 h-5 ${isFavorite(property.id) ? "fill-red-500 text-red-500" : ""}`} />
                   </Button>
-                  <Button variant="outline" size="icon" className="rounded-full">
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="rounded-full"
+                    onClick={() => setIsShareModalOpen(true)}
+                  >
                     <Share2 className="w-5 h-5" />
                   </Button>
-                  <Button variant="outline" size="icon" className="rounded-full">
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="rounded-full"
+                    onClick={handlePrint}
+                  >
                     <Printer className="w-5 h-5" />
                   </Button>
                 </div>
@@ -856,7 +911,7 @@ export function PropertyDetail({ property, onBack, similarProperties = [], curre
               {/* Price Card */}
               <div className="bg-white border rounded-lg p-6 shadow-sm">
                 <div className="mb-4">
-                  <div className="text-3xl">{getPrice()}</div>
+                  <div className="text-3xl font-semibold">{getPropertyPrice(property, currency)}</div>
                 </div>
                 
                 {/* Agent/Owner Quick Info */}
@@ -884,30 +939,46 @@ export function PropertyDetail({ property, onBack, similarProperties = [], curre
 
                 {/* Contact Buttons */}
                 <div className="space-y-3">
-                  {property.advertiserType === "agency" && property.agentWhatsApp ? (
-                    <Button className="w-full bg-emerald-600 hover:bg-emerald-700 h-12 gap-2">
-                      <MessageCircle className="w-4 h-4" />
-                      WhatsApp Agent
+                  <Button 
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 h-12 gap-2"
+                    onClick={() => setIsContactModalOpen(true)}
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    Contact Agent
+                  </Button>
+                  
+                  {(property.agentWhatsApp || property.ownerWhatsApp) && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full h-12 border-emerald-600 text-emerald-600 hover:bg-emerald-50"
+                      onClick={handleWhatsAppContact}
+                    >
+                      <MessageCircle className="w-4 h-4 mr-2" />
+                      WhatsApp
                     </Button>
-                  ) : property.advertiserType === "owner" && property.ownerWhatsApp ? (
-                    <Button className="w-full bg-emerald-600 hover:bg-emerald-700 h-12 gap-2">
-                      <MessageCircle className="w-4 h-4" />
-                      WhatsApp Owner
-                    </Button>
-                  ) : (
-                    <Button className="w-full bg-emerald-600 hover:bg-emerald-700 h-12 gap-2">
-                      <Phone className="w-4 h-4" />
+                  )}
+                  
+                  {(property.agentPhone || property.ownerPhone) && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full h-12"
+                      onClick={handlePhoneCall}
+                    >
+                      <Phone className="w-4 h-4 mr-2" />
                       Call
                     </Button>
                   )}
                   
-                  <Button variant="outline" className="w-full h-12 border-emerald-600 text-emerald-600 hover:bg-emerald-50">
-                    <Mail className="w-4 h-4 mr-2" />
-                    Email
-                  </Button>
-                  <Button variant="outline" className="w-full h-12">
-                    Request inspection
-                  </Button>
+                  {(property.agentEmail || property.ownerEmail) && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full h-12"
+                      onClick={handleEmailContact}
+                    >
+                      <Mail className="w-4 h-4 mr-2" />
+                      Email
+                    </Button>
+                  )}
                 </div>
 
                 <Separator className="my-6" />
@@ -1003,17 +1074,45 @@ export function PropertyDetail({ property, onBack, similarProperties = [], curre
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <div className="text-xs text-gray-600">Price</div>
-            <div className="text-xl">{getPrice()}</div>
+            <div className="text-xl font-semibold">{getPropertyPrice(property, currency)}</div>
           </div>
-          <Button className="bg-emerald-600 hover:bg-emerald-700 gap-2">
+          <Button 
+            className="bg-emerald-600 hover:bg-emerald-700 gap-2"
+            onClick={() => setIsContactModalOpen(true)}
+          >
             <MessageCircle className="w-4 h-4" />
             Contact
           </Button>
-          <Button variant="outline" size="icon">
-            <Heart className="w-5 h-5" />
+          <Button 
+            variant="outline" 
+            size="icon"
+            onClick={() => {
+              toggleFavorite(property.id);
+              toast.success(
+                isFavorite(property.id) 
+                  ? "Removed from favorites" 
+                  : "Added to favorites"
+              );
+            }}
+          >
+            <Heart className={`w-5 h-5 ${isFavorite(property.id) ? "fill-red-500 text-red-500" : ""}`} />
           </Button>
         </div>
       </div>
+
+      {/* Contact Agent Modal */}
+      <ContactAgentModal
+        open={isContactModalOpen}
+        onOpenChange={setIsContactModalOpen}
+        property={property}
+      />
+
+      {/* Share Modal */}
+      <ShareModal
+        open={isShareModalOpen}
+        onOpenChange={setIsShareModalOpen}
+        property={property}
+      />
     </div>
   );
 }

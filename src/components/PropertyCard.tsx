@@ -117,12 +117,18 @@ export interface PropertyData {
   listingType?: "sale" | "rent";
 }
 
+import { getPropertyPrice } from "../utils/formatCurrency";
+import { useFavorites } from "../contexts/FavoritesContext";
+import { toast } from "sonner";
+
 interface PropertyCardProps {
   property: PropertyData;
   onClick?: () => void;
+  currency?: "USD" | "IDR" | "AUD";
 }
 
-export function PropertyCard({ property, onClick }: PropertyCardProps) {
+export function PropertyCard({ property, onClick, currency = "USD" }: PropertyCardProps) {
+  const { isFavorite, toggleFavorite } = useFavorites();
   return (
     <div 
       className="bg-white rounded-lg overflow-hidden border hover:shadow-lg transition-shadow group cursor-pointer"
@@ -144,8 +150,19 @@ export function PropertyCard({ property, onClick }: PropertyCardProps) {
           variant="ghost"
           size="icon"
           className="absolute top-3 right-3 bg-white/90 hover:bg-white"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleFavorite(property.id);
+            toast.success(
+              isFavorite(property.id) 
+                ? "Removed from favorites" 
+                : "Added to favorites"
+            );
+          }}
         >
-          <Heart className="w-5 h-5" />
+          <Heart 
+            className={`w-5 h-5 ${isFavorite(property.id) ? "fill-red-500 text-red-500" : ""}`} 
+          />
         </Button>
         <div className="absolute bottom-3 left-3 bg-black/70 text-white px-3 py-1 rounded text-sm">
           {property.listingType === "sale" ? "For Sale" : "For Rent"}
@@ -156,7 +173,7 @@ export function PropertyCard({ property, onClick }: PropertyCardProps) {
       <div className="p-4">
         {/* Price */}
         <div className="mb-2">
-          <span className="text-2xl">{property.price}</span>
+          <span className="text-2xl font-semibold">{getPropertyPrice(property, currency)}</span>
         </div>
 
         {/* Address */}
